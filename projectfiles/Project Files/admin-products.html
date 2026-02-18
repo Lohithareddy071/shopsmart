@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Manage Products</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+</head>
+<body class="bg-light">
+  <div class="container my-5">
+    <h2 class="mb-4">🛠️ Admin: Manage Products</h2>
+
+    <!-- Add / Edit Product Form -->
+    <div class="card mb-4 p-4 shadow-sm">
+      <h4>➕ Add / ✏️ Edit Product</h4>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <input type="text" class="form-control" id="productName" placeholder="Product Name" />
+        </div>
+        <div class="col-md-2">
+          <input type="number" class="form-control" id="productPrice" placeholder="Price ₹" />
+        </div>
+        <div class="col-md-2">
+          <input type="text" class="form-control" id="productUnit" placeholder="Unit (kg, litre, piece)" />
+        </div>
+        <div class="col-md-3">
+          <input type="text" class="form-control" id="productImage" placeholder="Image URL" />
+        </div>
+        <div class="col-md-2">
+          <input type="text" class="form-control" id="productCategory" placeholder="Category" />
+        </div>
+        <div class="col-md-4">
+          <input type="text" class="form-control" id="productDescription" placeholder="Description" />
+        </div>
+        <div class="col-md-12 text-end">
+          <button class="btn btn-success" id="addBtn" onclick="addProduct()">Add Product</button>
+          <button class="btn btn-primary d-none" id="updateBtn" onclick="updateProduct()">Update Product</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product Table -->
+    <table class="table table-bordered table-hover bg-white">
+      <thead class="table-dark">
+        <tr>
+          <th>Name</th>
+          <th>Price (₹)</th>
+          <th>Unit</th>
+          <th>Image</th>
+          <th>Category</th>
+          <th>Description</th>
+          <th colspan="2">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="productTableBody">
+        <!-- Products will be inserted here -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const API = "http://localhost:5000/api/products";
+    const tbody = document.getElementById("productTableBody");
+
+    let editId = null;
+
+    function loadProducts() {
+      fetch(API)
+        .then(res => res.json())
+        .then(data => {
+          tbody.innerHTML = data.map(p => `
+            <tr>
+              <td>${p.name}</td>
+              <td>₹${p.price}</td>
+              <td>${p.unit || "piece"}</td>
+              <td><img src="${p.image}" alt="${p.name}" width="50"/></td>
+              <td>${p.category}</td>
+              <td>${p.description}</td>
+              <td>
+                <button class="btn btn-warning btn-sm" onclick='editProduct(${JSON.stringify(p)})'>Edit</button>
+              </td>
+              <td>
+                <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p._id}')">Delete</button>
+              </td>
+            </tr>
+          `).join('');
+        });
+    }
+
+    function addProduct() {
+      const name = document.getElementById("productName").value.trim();
+      const price = parseFloat(document.getElementById("productPrice").value);
+      const unit = document.getElementById("productUnit").value.trim() || "piece";
+      let image = document.getElementById("productImage").value.trim();
+if (!image.startsWith("http")) {
+  image = `http://localhost:5000/raw_images/${image}`;
+}
+
+      const category = document.getElementById("productCategory").value.trim();
+      const description = document.getElementById("productDescription").value.trim();
+
+      if (!name || !price || !image || !category) {
+        alert("⚠️ Please fill all required fields.");
+        return;
+      }
+
+      const newProduct = { name, price, unit, image, category, description };
+
+      fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProduct)
+      })
+      .then(res => res.json())
+      .then(() => {
+        alert("✅ Product added");
+        document.querySelectorAll("input").forEach(i => i.value = "");
+        loadProducts();
+      });
+    }
+
+    function deleteProduct(id) {
+      if (!confirm("Are you sure to delete this product?")) return;
+
+      fetch(`${API}/${id}`, {
+        method: "DELETE"
+      })
+      .then(res => res.json())
+      .then(() => {
+        alert("🗑️ Product deleted");
+        loadProducts();
+      });
+    }
+
+    function editProduct(p) {
+      editId = p._id;
+      document.getElementById("productName").value = p.name;
+      document.getElementById("productPrice").value = p.price;
+      document.getElementById("productUnit").value = p.unit || "piece";
+document.getElementById("productImage").value = p.image.replace("http://localhost:5000/raw_images/", "");
+
+      document.getElementById("productCategory").value = p.category;
+      document.getElementById("productDescription").value = p.description;
+
+      document.getElementById("addBtn").classList.add("d-none");
+      document.getElementById("updateBtn").classList.remove("d-none");
+    }
+
+    function updateProduct() {
+      const name = document.getElementById("productName").value.trim();
+      const price = parseFloat(document.getElementById("productPrice").value);
+      const unit = document.getElementById("productUnit").value.trim() || "piece";
+      const image = document.getElementById("productImage").value.trim();
+      const category = document.getElementById("productCategory").value.trim();
+      const description = document.getElementById("productDescription").value.trim();
+
+      if (!editId) return alert("⚠️ No product selected to update.");
+
+      const updatedProduct = { name, price, unit, image, category, description };
+
+      fetch(`${API}/${editId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedProduct)
+      })
+      .then(res => res.json())
+      .then(() => {
+        alert("✏️ Product updated");
+        editId = null;
+        document.querySelectorAll("input").forEach(i => i.value = "");
+        document.getElementById("addBtn").classList.remove("d-none");
+        document.getElementById("updateBtn").classList.add("d-none");
+        loadProducts();
+      });
+    }
+
+    loadProducts();
+  </script>
+</body>
+</html>
